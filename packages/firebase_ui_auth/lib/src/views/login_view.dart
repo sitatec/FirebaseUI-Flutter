@@ -112,10 +112,13 @@ class _LoginViewState extends State<LoginView> {
         children: oauthButtonsList,
       );
     } else {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        mainAxisSize: MainAxisSize.min,
-        children: oauthButtonsList,
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisSize: MainAxisSize.min,
+          children: oauthButtonsList,
+        ),
       );
     }
   }
