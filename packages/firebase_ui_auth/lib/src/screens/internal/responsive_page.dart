@@ -154,6 +154,7 @@ class _ResponsivePageState extends State<ResponsivePage> {
                 children: <Widget>[
                   if (widget.sideBuilder != null)
                     Expanded(
+                      flex: 4,
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           return widget.sideBuilder!(context, constraints);
@@ -161,7 +162,7 @@ class _ResponsivePageState extends State<ResponsivePage> {
                       ),
                     ),
                   Expanded(
-                    flex: widget.contentFlex ?? 1,
+                    flex: widget.contentFlex ?? 3,
                     child: Center(
                       child: ListView(
                         shrinkWrap: true,
