@@ -178,18 +178,43 @@ class _FirestoreQueryBuilderState<Document>
 
     final query = widget.query.limit(expectedDocsCount);
 
+    // A new listener first emits whatever the local cache holds, which is
+    // often less than the pages already shown. Rendering that would shrink
+    // the list and reset the scroll position, so keep the current docs until
+    // the server responds. A drop of one doc is still rendered, since that is
+    // what a local delete looks like. Metadata changes are included so that a
+    // server result identical to the cache still arrives as an event.
+    var awaitingServer = nextPage;
+    var hasRendered = false;
+
     _querySubscription = query
-        .snapshots(includeMetadataChanges: widget.includeMetadataChanges)
+        .snapshots(
+          includeMetadataChanges:
+              widget.includeMetadataChanges || awaitingServer,
+        )
         .listen(
           (event) {
-            setState(() {
-              if (nextPage) {
-                _snapshot = _snapshot.copyWith(isFetchingMore: false);
-              } else {
-                _snapshot = _snapshot.copyWith(isFetching: false);
+            if (awaitingServer) {
+              if (event.metadata.isFromCache &&
+                  event.size < _snapshot.docs.length - 1) {
+                return;
               }
+              awaitingServer = false;
+            }
 
+            // Metadata-only events have no doc changes. Only render them if
+            // the consumer asked for metadata changes.
+            if (hasRendered &&
+                !widget.includeMetadataChanges &&
+                event.docChanges.isEmpty) {
+              return;
+            }
+            hasRendered = true;
+
+            setState(() {
               _snapshot = _snapshot.copyWith(
+                isFetching: false,
+                isFetchingMore: false,
                 hasData: true,
                 docs: event.size < expectedDocsCount
                     ? event.docs
@@ -203,13 +228,9 @@ class _FirestoreQueryBuilderState<Document>
           },
           onError: (Object error, StackTrace stackTrace) {
             setState(() {
-              if (nextPage) {
-                _snapshot = _snapshot.copyWith(isFetchingMore: false);
-              } else {
-                _snapshot = _snapshot.copyWith(isFetching: false);
-              }
-
               _snapshot = _snapshot.copyWith(
+                isFetching: false,
+                isFetchingMore: false,
                 error: error,
                 stackTrace: stackTrace,
                 hasError: true,
@@ -360,7 +381,11 @@ class _Sentinel {
 
 /// A type representing the function passed to [FirestoreListView] for its `itemBuilder`.
 typedef FirestoreItemBuilder<Document> =
-    Widget Function(BuildContext context, QueryDocumentSnapshot<Document> doc);
+    Widget Function(
+      BuildContext context,
+      QueryDocumentSnapshot<Document> doc,
+      int index,
+    );
 
 /// A type representing the function passed to [FirestoreListView] for its `loadingBuilder`.
 typedef FirestoreLoadingBuilder = Widget Function(BuildContext context);
@@ -414,7 +439,7 @@ typedef FirestoreEmptyBuilder = Widget Function(BuildContext context);
 /// ```dart
 /// FirestoreListView<Movie>(
 ///   query: moviesCollection.orderBy('title'),
-///   itemBuilder: (context, snapshot) {
+///   itemBuilder: (context, snapshot, index) {
 ///     Movie movie = snapshot.data();
 ///     return Text(movie.title);
 ///   },
@@ -499,7 +524,7 @@ class FirestoreListView<Document> extends FirestoreQueryBuilder<Document> {
                        child: Column(
                          crossAxisAlignment: CrossAxisAlignment.start,
                          children: [
-                           itemBuilder(context, doc),
+                           itemBuilder(context, doc, index),
                            if (isLastItem && snapshot.hasMore)
                              fetchingIndicatorBuilder?.call(context) ??
                                  const Padding(
@@ -516,7 +541,7 @@ class FirestoreListView<Document> extends FirestoreQueryBuilder<Document> {
                          ],
                        ),
                      )
-                   : itemBuilder(context, doc);
+                   : itemBuilder(context, doc, index);
              },
              scrollDirection: scrollDirection,
              reverse: reverse,
@@ -611,7 +636,7 @@ class FirestoreListView<Document> extends FirestoreQueryBuilder<Document> {
                        child: Column(
                          crossAxisAlignment: CrossAxisAlignment.start,
                          children: [
-                           itemBuilder(context, doc),
+                           itemBuilder(context, doc, index),
                            if (isLastItem && snapshot.hasMore)
                              fetchingIndicatorBuilder?.call(context) ??
                                  const Padding(
@@ -628,7 +653,7 @@ class FirestoreListView<Document> extends FirestoreQueryBuilder<Document> {
                          ],
                        ),
                      )
-                   : itemBuilder(context, doc);
+                   : itemBuilder(context, doc, index);
              },
              separatorBuilder: separatorBuilder,
              scrollDirection: scrollDirection,
