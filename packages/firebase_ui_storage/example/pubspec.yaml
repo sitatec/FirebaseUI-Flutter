@@ -10,9 +10,9 @@ resolution: workspace
 
 dependencies:
   cupertino_icons: ^1.0.6
-  firebase_core: ^4.15.0
-  firebase_storage: ^13.4.3
-  firebase_ui_storage: ^3.1.0
+  firebase_core: ^5.0.0
+  firebase_storage: ^14.0.0
+  firebase_ui_storage: ^4.0.0
   firebase_ui_shared: ^1.5.0
 
   flutter:
@@ -25,3 +25,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  config:
+    enable-swift-package-manager: true
